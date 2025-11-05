@@ -485,7 +485,26 @@
       const cleanPhone = phone.replace(/[^0-9]/g, '');
       const fullPhone = config.whatsapp_country_code + cleanPhone;
       const encodedMessage = encodeURIComponent(message);
-      window.open(`https://wa.me/${fullPhone}?text=${encodedMessage}`, '_blank', 'noopener,noreferrer');
+      
+      // Detect if user is on mobile device
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // For mobile devices, use the app protocol first, then fallback to web
+        const appUrl = `whatsapp://send?phone=${fullPhone}&text=${encodedMessage}`;
+        const webUrl = `https://wa.me/${fullPhone}?text=${encodedMessage}`;
+        
+        // Try to open the app first
+        window.location.href = appUrl;
+        
+        // Fallback to web version after a short delay if app doesn't open
+        setTimeout(() => {
+          window.open(webUrl, '_blank', 'noopener,noreferrer');
+        }, 1000);
+      } else {
+        // For desktop, use the web version
+        window.open(`https://wa.me/${fullPhone}?text=${encodedMessage}`, '_blank', 'noopener,noreferrer');
+      }
     }
 
     function showAlert(message, type = 'error') {
@@ -500,7 +519,7 @@
       }
     }
 
-    // Data Operations (Firebase with Local Storage Fallback)
+    // Enhanced Data Operations with Hybrid Sync
     async function createVoucher(name, phone, amount) {
       const code = generateVoucherCode();
       const voucherData = {
@@ -514,95 +533,220 @@
         createdAt: Date.now()
       };
 
-      try {
-        if (firebaseInitialized) {
+      // Always save to both Firebase and localStorage for maximum reliability
+      let firebaseSuccess = false;
+      let localSuccess = false;
+
+      // Try Firebase first
+      if (firebaseInitialized) {
+        try {
           await database.ref('vouchers/' + code).set(voucherData);
-        } else {
-          const data = getLocalData();
-          data[code] = voucherData;
-          setLocalData(data);
+          firebaseSuccess = true;
+        } catch (error) {
+          console.warn('Firebase write failed:', error);
         }
-        return voucherData;
-      } catch (error) {
-        console.warn('Firebase write failed, using localStorage:', error);
+      }
+
+      // Always save to localStorage as backup
+      try {
         const data = getLocalData();
         data[code] = voucherData;
         setLocalData(data);
-        return voucherData;
+        localSuccess = true;
+      } catch (error) {
+        console.warn('localStorage write failed:', error);
       }
+
+      if (!firebaseSuccess && !localSuccess) {
+        throw new Error('Failed to save voucher to any storage');
+      }
+
+      return voucherData;
     }
 
     async function getVoucher(code) {
-      try {
-        if (firebaseInitialized) {
+      let firebaseData = null;
+      let localData = null;
+
+      // Try to get from Firebase first
+      if (firebaseInitialized) {
+        try {
           const snapshot = await database.ref('vouchers/' + code).once('value');
-          return snapshot.val();
-        } else {
-          const data = getLocalData();
-          return data[code] || null;
+          firebaseData = snapshot.val();
+        } catch (error) {
+          console.warn('Firebase read failed:', error);
         }
-      } catch (error) {
-        console.warn('Firebase read failed, using localStorage:', error);
-        const data = getLocalData();
-        return data[code] || null;
       }
+
+      // Always check localStorage as well
+      try {
+        const data = getLocalData();
+        localData = data[code] || null;
+      } catch (error) {
+        console.warn('localStorage read failed:', error);
+      }
+
+      // Return the most recent data (Firebase takes priority if both exist)
+      if (firebaseData && localData) {
+        // If both exist, return the one with more recent updates
+        const firebaseTime = firebaseData.createdAt || 0;
+        const localTime = localData.createdAt || 0;
+        
+        // Also check for orders to determine which is more up-to-date
+        const firebaseOrders = (firebaseData.orders || []).length;
+        const localOrders = (localData.orders || []).length;
+        
+        if (firebaseOrders >= localOrders && firebaseTime >= localTime) {
+          // Sync local with Firebase data
+          try {
+            const data = getLocalData();
+            data[code] = firebaseData;
+            setLocalData(data);
+          } catch (e) {
+            console.warn('Failed to sync to localStorage:', e);
+          }
+          return firebaseData;
+        } else {
+          // Sync Firebase with local data
+          if (firebaseInitialized) {
+            try {
+              await database.ref('vouchers/' + code).set(localData);
+            } catch (e) {
+              console.warn('Failed to sync to Firebase:', e);
+            }
+          }
+          return localData;
+        }
+      }
+
+      return firebaseData || localData;
     }
 
     async function getAllVouchers() {
-      try {
-        if (firebaseInitialized) {
+      let firebaseVouchers = [];
+      let localVouchers = [];
+
+      // Get from Firebase
+      if (firebaseInitialized) {
+        try {
           const snapshot = await database.ref('vouchers').once('value');
-          const vouchers = [];
           snapshot.forEach(child => {
-            vouchers.push(child.val());
+            firebaseVouchers.push(child.val());
           });
-          return vouchers;
-        } else {
-          const data = getLocalData();
-          return Object.values(data);
+        } catch (error) {
+          console.warn('Firebase read failed:', error);
         }
-      } catch (error) {
-        console.warn('Firebase read failed, using localStorage:', error);
-        const data = getLocalData();
-        return Object.values(data);
       }
+
+      // Get from localStorage
+      try {
+        const data = getLocalData();
+        localVouchers = Object.values(data);
+      } catch (error) {
+        console.warn('localStorage read failed:', error);
+      }
+
+      // Merge and deduplicate vouchers
+      const allVouchers = new Map();
+      
+      // Add local vouchers first
+      localVouchers.forEach(voucher => {
+        if (voucher && voucher.code) {
+          allVouchers.set(voucher.code, voucher);
+        }
+      });
+
+      // Add/update with Firebase vouchers (they take priority)
+      firebaseVouchers.forEach(voucher => {
+        if (voucher && voucher.code) {
+          const existing = allVouchers.get(voucher.code);
+          if (!existing || (voucher.orders || []).length >= (existing.orders || []).length) {
+            allVouchers.set(voucher.code, voucher);
+          }
+        }
+      });
+
+      const mergedVouchers = Array.from(allVouchers.values());
+
+      // Sync any missing data back to both storages
+      try {
+        if (firebaseInitialized && mergedVouchers.length > 0) {
+          const updates = {};
+          mergedVouchers.forEach(voucher => {
+            updates[`vouchers/${voucher.code}`] = voucher;
+          });
+          await database.ref().update(updates);
+        }
+
+        const localData = {};
+        mergedVouchers.forEach(voucher => {
+          localData[voucher.code] = voucher;
+        });
+        setLocalData(localData);
+      } catch (error) {
+        console.warn('Failed to sync merged data:', error);
+      }
+
+      return mergedVouchers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     }
 
     async function updateVoucher(code, updateData) {
-      try {
-        if (firebaseInitialized) {
+      let firebaseSuccess = false;
+      let localSuccess = false;
+
+      // Update Firebase
+      if (firebaseInitialized) {
+        try {
           await database.ref('vouchers/' + code).update(updateData);
-        } else {
-          const data = getLocalData();
-          if (data[code]) {
-            data[code] = { ...data[code], ...updateData };
-            setLocalData(data);
-          }
+          firebaseSuccess = true;
+        } catch (error) {
+          console.warn('Firebase update failed:', error);
         }
-      } catch (error) {
-        console.warn('Firebase update failed, using localStorage:', error);
+      }
+
+      // Update localStorage
+      try {
         const data = getLocalData();
         if (data[code]) {
           data[code] = { ...data[code], ...updateData };
           setLocalData(data);
+          localSuccess = true;
         }
+      } catch (error) {
+        console.warn('localStorage update failed:', error);
+      }
+
+      if (!firebaseSuccess && !localSuccess) {
+        throw new Error('Failed to update voucher in any storage');
       }
     }
 
     async function deleteVoucher(code) {
-      try {
-        if (firebaseInitialized) {
+      let firebaseSuccess = false;
+      let localSuccess = false;
+
+      // Delete from Firebase
+      if (firebaseInitialized) {
+        try {
           await database.ref('vouchers/' + code).remove();
-        } else {
-          const data = getLocalData();
-          delete data[code];
-          setLocalData(data);
+          firebaseSuccess = true;
+        } catch (error) {
+          console.warn('Firebase delete failed:', error);
         }
-      } catch (error) {
-        console.warn('Firebase delete failed, using localStorage:', error);
+      }
+
+      // Delete from localStorage
+      try {
         const data = getLocalData();
         delete data[code];
         setLocalData(data);
+        localSuccess = true;
+      } catch (error) {
+        console.warn('localStorage delete failed:', error);
+      }
+
+      if (!firebaseSuccess && !localSuccess) {
+        throw new Error('Failed to delete voucher from any storage');
       }
     }
 
@@ -657,6 +801,7 @@
           <div class="header">
             <h1 id="app-title">${config.app_title}</h1>
             <p>نظام إدارة قسائم الشراء الإلكتروني</p>
+
           </div>
           
           <div class="card" style="max-width: 500px; margin: 50px auto; text-align: center;">
@@ -1513,5 +1658,5 @@
       render();
     }
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'999cc6c2e4334b2d',t:'MTc2MjM1MDE2Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'999ce72c10d4d5f6',t:'MTc2MjM1MTQ5NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
