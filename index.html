@@ -1,0 +1,1517 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام قسائم الشراء</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: white;
+      min-height: 100%;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      min-height: 100%;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      padding: 20px;
+      color: white;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 16px;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: linear-gradient(45deg, #667eea, #764ba2);
+      color: white;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+    }
+
+    .btn-secondary {
+      background: #f8f9fa;
+      color: #495057;
+      border: 2px solid #dee2e6;
+    }
+
+    .btn-secondary:hover {
+      background: #e9ecef;
+      transform: translateY(-1px);
+    }
+
+    .btn-danger {
+      background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+
+    .stats-card {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .stats-number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .stats-label {
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+
+    .table th {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 15px;
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .table td {
+      padding: 15px;
+      border-bottom: 1px solid #f8f9fa;
+    }
+
+    .table tr:hover {
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90%;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      margin: 0;
+      color: black;
+    }
+
+    .header p {
+      color: black;
+      margin: 10px 0 0 0;
+      font-size: 1.1rem;
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid;
+    }
+
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border-left-color: #dc3545;
+    }
+
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border-left-color: #28a745;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .flex {
+      display: flex !important;
+    }
+
+    .admin-btn {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(102, 126, 234, 0.9);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 10px 15px;
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .admin-btn:hover {
+      background: rgba(102, 126, 234, 1);
+      transform: translateY(-1px);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        padding: 15px;
+      }
+
+      .card {
+        padding: 20px;
+        border-radius: 15px;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+      }
+
+      .stats-number {
+        font-size: 2rem;
+      }
+
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .table th, .table td {
+        padding: 10px 8px;
+        font-size: 14px;
+      }
+
+      .btn {
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      .modal-content {
+        padding: 20px;
+        margin: 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 10px;
+      }
+
+      .card {
+        padding: 15px;
+      }
+
+      .header h1 {
+        font-size: 1.8rem;
+      }
+
+      .form-input {
+        padding: 12px;
+      }
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      
+      body {
+        background: white !important;
+      }
+      
+      .card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+      }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
+ </head>
+ <body>
+  <div id="app"></div>
+  <script>
+    // Firebase Configuration with proper security rules
+    const firebaseConfig = {
+      apiKey: "AIzaSyBIP8ezD990c7kZ3z-gsma2KJpp7Zqu7eA",
+      authDomain: "ishtrakta.firebaseapp.com",
+      databaseURL: "https://ishtrakta-default-rtdb.firebaseio.com",
+      projectId: "ishtrakta",
+      storageBucket: "ishtrakta.firebasestorage.app",
+      messagingSenderId: "854766859254",
+      appId: "1:854766859254:web:0375c2c8c9c518b2f74dd7",
+      measurementId: "G-QT71DGNRXT"
+    };
+
+    // Initialize Firebase with error handling
+    let database = null;
+    let firebaseInitialized = false;
+
+    try {
+      firebase.initializeApp(firebaseConfig);
+      database = firebase.database();
+      firebaseInitialized = true;
+    } catch (error) {
+      console.warn('Firebase initialization failed, using local storage:', error);
+      firebaseInitialized = false;
+    }
+
+    // Default Configuration
+    const defaultConfig = {
+      app_title: "قسائم شراء",
+      business_name: "مخبز التين والزيتون، و مطعم التين الطبيعي",
+      whatsapp_country_code: "965"
+    };
+
+    let config = { ...defaultConfig };
+
+    // Local Storage Fallback
+    const STORAGE_KEY = 'vouchers_data';
+    
+    function getLocalData() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch {
+        return {};
+      }
+    }
+
+    function setLocalData(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (error) {
+        console.warn('Failed to save to localStorage:', error);
+      }
+    }
+
+    // State Management
+    let currentView = 'home';
+    let currentVoucher = null;
+    let clickCount = 0;
+    let clickTimer = null;
+
+    // Utility Functions
+    function convertArabicToEnglish(str) {
+      const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+      const englishNumbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+      
+      let result = str;
+      arabicNumbers.forEach((arabic, index) => {
+        result = result.replace(new RegExp(arabic, 'g'), englishNumbers[index]);
+      });
+      
+      result = result.replace(/،/g, '.');
+      return result;
+    }
+
+    function generateVoucherCode() {
+      return Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      return date.toLocaleDateString('ar-SA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function openWhatsApp(phone, message) {
+      const cleanPhone = phone.replace(/[^0-9]/g, '');
+      const fullPhone = config.whatsapp_country_code + cleanPhone;
+      const encodedMessage = encodeURIComponent(message);
+      window.open(`https://wa.me/${fullPhone}?text=${encodedMessage}`, '_blank', 'noopener,noreferrer');
+    }
+
+    function showAlert(message, type = 'error') {
+      const alertDiv = document.createElement('div');
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.textContent = message;
+      
+      const container = document.querySelector('.container');
+      if (container) {
+        container.insertBefore(alertDiv, container.firstChild);
+        setTimeout(() => alertDiv.remove(), 5000);
+      }
+    }
+
+    // Data Operations (Firebase with Local Storage Fallback)
+    async function createVoucher(name, phone, amount) {
+      const code = generateVoucherCode();
+      const voucherData = {
+        name,
+        phone,
+        code,
+        totalAmount: parseFloat(amount),
+        usedAmount: 0,
+        remainingAmount: parseFloat(amount),
+        orders: [],
+        createdAt: Date.now()
+      };
+
+      try {
+        if (firebaseInitialized) {
+          await database.ref('vouchers/' + code).set(voucherData);
+        } else {
+          const data = getLocalData();
+          data[code] = voucherData;
+          setLocalData(data);
+        }
+        return voucherData;
+      } catch (error) {
+        console.warn('Firebase write failed, using localStorage:', error);
+        const data = getLocalData();
+        data[code] = voucherData;
+        setLocalData(data);
+        return voucherData;
+      }
+    }
+
+    async function getVoucher(code) {
+      try {
+        if (firebaseInitialized) {
+          const snapshot = await database.ref('vouchers/' + code).once('value');
+          return snapshot.val();
+        } else {
+          const data = getLocalData();
+          return data[code] || null;
+        }
+      } catch (error) {
+        console.warn('Firebase read failed, using localStorage:', error);
+        const data = getLocalData();
+        return data[code] || null;
+      }
+    }
+
+    async function getAllVouchers() {
+      try {
+        if (firebaseInitialized) {
+          const snapshot = await database.ref('vouchers').once('value');
+          const vouchers = [];
+          snapshot.forEach(child => {
+            vouchers.push(child.val());
+          });
+          return vouchers;
+        } else {
+          const data = getLocalData();
+          return Object.values(data);
+        }
+      } catch (error) {
+        console.warn('Firebase read failed, using localStorage:', error);
+        const data = getLocalData();
+        return Object.values(data);
+      }
+    }
+
+    async function updateVoucher(code, updateData) {
+      try {
+        if (firebaseInitialized) {
+          await database.ref('vouchers/' + code).update(updateData);
+        } else {
+          const data = getLocalData();
+          if (data[code]) {
+            data[code] = { ...data[code], ...updateData };
+            setLocalData(data);
+          }
+        }
+      } catch (error) {
+        console.warn('Firebase update failed, using localStorage:', error);
+        const data = getLocalData();
+        if (data[code]) {
+          data[code] = { ...data[code], ...updateData };
+          setLocalData(data);
+        }
+      }
+    }
+
+    async function deleteVoucher(code) {
+      try {
+        if (firebaseInitialized) {
+          await database.ref('vouchers/' + code).remove();
+        } else {
+          const data = getLocalData();
+          delete data[code];
+          setLocalData(data);
+        }
+      } catch (error) {
+        console.warn('Firebase delete failed, using localStorage:', error);
+        const data = getLocalData();
+        delete data[code];
+        setLocalData(data);
+      }
+    }
+
+    async function addOrder(voucherCode, orderData) {
+      const voucher = await getVoucher(voucherCode);
+      if (!voucher) return null;
+
+      const order = {
+        id: Date.now().toString(),
+        invoiceNumber: orderData.invoiceNumber,
+        amount: parseFloat(orderData.amount),
+        employeeName: orderData.employeeName,
+        createdAt: Date.now()
+      };
+
+      const orders = voucher.orders || [];
+      orders.push(order);
+
+      const usedAmount = voucher.usedAmount + order.amount;
+      const remainingAmount = voucher.totalAmount - usedAmount;
+
+      await updateVoucher(voucherCode, {
+        orders,
+        usedAmount,
+        remainingAmount
+      });
+
+      return { ...voucher, orders, usedAmount, remainingAmount };
+    }
+
+    async function deleteOrder(voucherCode, orderId) {
+      const voucher = await getVoucher(voucherCode);
+      if (!voucher) return null;
+
+      const orders = voucher.orders.filter(o => o.id !== orderId);
+      const usedAmount = orders.reduce((sum, o) => sum + o.amount, 0);
+      const remainingAmount = voucher.totalAmount - usedAmount;
+
+      await updateVoucher(voucherCode, {
+        orders,
+        usedAmount,
+        remainingAmount
+      });
+
+      return { ...voucher, orders, usedAmount, remainingAmount };
+    }
+
+    // Render Functions
+    function renderHome() {
+      return `
+        <div class="container fade-in">
+          <div class="header">
+            <h1 id="app-title">${config.app_title}</h1>
+            <p>نظام إدارة قسائم الشراء الإلكتروني</p>
+          </div>
+          
+          <div class="card" style="max-width: 500px; margin: 50px auto; text-align: center;">
+            <div class="input-group">
+              <label class="input-label" style="text-align: center; display: block;">رمز القسيمة</label>
+              <input 
+                type="text" 
+                id="voucherCodeInput"
+                class="form-input"
+                placeholder="اكتب رمز القسيمة هنا"
+                style="text-align: center; font-size: 1.2rem; font-weight: bold;"
+              />
+            </div>
+            
+            <button 
+              id="nextBtn"
+              class="btn btn-primary hidden"
+              style="width: 100%; font-size: 1.1rem;"
+            >
+              التالي
+            </button>
+            
+            <div id="errorMsg" class="hidden"></div>
+          </div>
+          
+          <button 
+            id="adminBtn"
+            class="admin-btn hidden no-print"
+          >
+            🔧 إدارة
+          </button>
+        </div>
+      `;
+    }
+
+    function renderVoucherDetails(voucher) {
+      const orders = voucher.orders || [];
+      
+      return `
+        <div class="container fade-in">
+          <div class="card no-print" style="margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+              <button id="backBtn" class="btn btn-secondary">← رجوع</button>
+              <h2 style="margin: 0; color: #495057;">تفاصيل القسيمة</h2>
+              <button id="printBtn" class="btn btn-primary">🖨️ طباعة</button>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="grid grid-3" style="margin-bottom: 30px;">
+              <div class="stats-card">
+                <div class="stats-number">${voucher.totalAmount.toFixed(2)}</div>
+                <div class="stats-label">قيمة القسيمة (د.ك)</div>
+              </div>
+              <div class="stats-card" style="background: linear-gradient(135deg, #ff6b6b, #ee5a52);">
+                <div class="stats-number">${voucher.usedAmount.toFixed(2)}</div>
+                <div class="stats-label">المبلغ المستخدم (د.ك)</div>
+              </div>
+              <div class="stats-card" style="background: linear-gradient(135deg, #51cf66, #40c057);">
+                <div class="stats-number">${voucher.remainingAmount.toFixed(2)}</div>
+                <div class="stats-label">المبلغ المتبقي (د.ك)</div>
+              </div>
+            </div>
+            
+            <div class="grid grid-2" style="margin-bottom: 30px;">
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                <h4 style="margin: 0 0 10px 0; color: #495057;">معلومات الزبون</h4>
+                <p style="margin: 5px 0;"><strong>الاسم:</strong> ${voucher.name}</p>
+                <p style="margin: 5px 0;"><strong>الهاتف:</strong> ${voucher.phone}</p>
+                <p style="margin: 5px 0;"><strong>رمز القسيمة:</strong> <span style="color: #667eea; font-weight: bold;">${voucher.code}</span></p>
+              </div>
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                <h4 style="margin: 0 0 10px 0; color: #495057;">تاريخ الإنشاء</h4>
+                <p style="margin: 5px 0;">${formatDate(voucher.createdAt)}</p>
+                <p style="margin: 15px 0 5px 0;"><strong>عدد الطلبات:</strong> ${orders.length}</p>
+              </div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+              <h3 style="margin: 0; color: #495057;">سجل الطلبات</h3>
+              <button id="addOrderBtn" class="btn btn-primary no-print">+ إضافة طلب جديد</button>
+            </div>
+            
+            ${orders.length === 0 ? `
+              <div style="text-align: center; padding: 40px; color: #6c757d;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">📋</div>
+                <p>لا توجد طلبات بعد</p>
+              </div>
+            ` : `
+              <div class="table-container">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>رقم الفاتورة</th>
+                      <th>المبلغ</th>
+                      <th>الموظف</th>
+                      <th>التاريخ</th>
+                      <th class="no-print" style="text-align: center;">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${orders.map(order => `
+                      <tr>
+                        <td style="font-weight: 600;">${order.invoiceNumber}</td>
+                        <td style="color: #ff6b6b; font-weight: 600;">${order.amount.toFixed(2)} د.ك</td>
+                        <td>${order.employeeName}</td>
+                        <td style="font-size: 0.9rem; color: #6c757d;">${formatDate(order.createdAt)}</td>
+                        <td class="no-print" style="text-align: center;">
+                          <button 
+                            class="deleteOrderBtn btn btn-danger"
+                            data-order-id="${order.id}"
+                            style="padding: 5px 10px; font-size: 12px;"
+                          >
+                            حذف
+                          </button>
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
+        
+        <div id="orderModal" class="modal no-print">
+          <div class="modal-content">
+            <h3 style="margin-bottom: 25px; color: #495057; text-align: center;">إضافة طلب جديد</h3>
+            
+            <div class="grid grid-2" style="margin-bottom: 20px;">
+              <div class="input-group">
+                <label class="input-label">اسم الزبون</label>
+                <input type="text" id="orderCustomerName" class="form-input" value="${voucher.name}" readonly style="background: #f8f9fa;">
+              </div>
+              <div class="input-group">
+                <label class="input-label">رقم الهاتف</label>
+                <input type="text" id="orderCustomerPhone" class="form-input" value="${voucher.phone}" readonly style="background: #f8f9fa;">
+              </div>
+            </div>
+            
+            <div class="input-group">
+              <label class="input-label">رمز القسيمة</label>
+              <input type="text" id="orderVoucherCode" class="form-input" value="${voucher.code}" readonly style="background: #f8f9fa; text-align: center; font-weight: bold;">
+            </div>
+            
+            <div class="input-group">
+              <label class="input-label">رقم الفاتورة</label>
+              <input type="text" id="orderInvoiceNumber" class="form-input" placeholder="أدخل رقم الفاتورة">
+            </div>
+            
+            <div class="input-group">
+              <label class="input-label">مبلغ الفاتورة (د.ك)</label>
+              <input type="text" id="orderAmount" class="form-input" placeholder="أدخل المبلغ">
+            </div>
+            
+            <div class="input-group">
+              <label class="input-label">اسم الموظف</label>
+              <input type="text" id="orderEmployeeName" class="form-input" placeholder="أدخل اسم الموظف">
+            </div>
+            
+            <div id="orderErrorMsg" class="hidden"></div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+              <button id="submitOrderBtn" class="btn btn-primary" style="flex: 1;">خصم من القسيمة</button>
+              <button id="cancelOrderBtn" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAdmin(vouchers) {
+      return `
+        <div class="container fade-in">
+          <div class="card no-print">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+              <button id="backToHomeBtn" class="btn btn-secondary">← رجوع للرئيسية</button>
+              <h2 style="margin: 0; color: #495057;">لوحة الإدارة</h2>
+              <div style="display: flex; gap: 10px;">
+                <button id="printAllBtn" class="btn btn-primary">🖨️ طباعة الكل</button>
+                <button id="addVoucherBtn" class="btn btn-primary">+ إضافة قسيمة</button>
+              </div>
+            </div>
+          </div>
+          
+          ${vouchers.length > 0 ? `
+            <div class="card" style="margin-bottom: 20px;">
+              <div class="grid grid-3">
+                <div class="stats-card">
+                  <div class="stats-number">${vouchers.length}</div>
+                  <div class="stats-label">إجمالي القسائم</div>
+                </div>
+                <div class="stats-card" style="background: linear-gradient(135deg, #51cf66, #40c057);">
+                  <div class="stats-number">${vouchers.reduce((sum, v) => sum + v.totalAmount, 0).toFixed(2)}</div>
+                  <div class="stats-label">إجمالي القيمة (د.ك)</div>
+                </div>
+                <div class="stats-card" style="background: linear-gradient(135deg, #ff6b6b, #ee5a52);">
+                  <div class="stats-number">${vouchers.reduce((sum, v) => sum + v.usedAmount, 0).toFixed(2)}</div>
+                  <div class="stats-label">المبلغ المستخدم (د.ك)</div>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+          
+          <div class="card">
+            <h3 style="margin-bottom: 20px; color: #495057;">قائمة القسائم</h3>
+            
+            ${vouchers.length === 0 ? `
+              <div style="text-align: center; padding: 40px; color: #6c757d;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">🎫</div>
+                <p>لا توجد قسائم بعد</p>
+                <button class="btn btn-primary" onclick="document.getElementById('addVoucherBtn').click()">إضافة أول قسيمة</button>
+              </div>
+            ` : `
+              <div class="table-container">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>رمز القسيمة</th>
+                      <th>اسم الزبون</th>
+                      <th>رقم الهاتف</th>
+                      <th>قيمة القسيمة</th>
+                      <th>المتبقي</th>
+                      <th>التاريخ</th>
+                      <th class="no-print" style="text-align: center;">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${vouchers.map(voucher => `
+                      <tr>
+                        <td style="font-weight: bold; color: #667eea;">${voucher.code}</td>
+                        <td>${voucher.name}</td>
+                        <td>${voucher.phone}</td>
+                        <td style="font-weight: 600;">${voucher.totalAmount.toFixed(2)} د.ك</td>
+                        <td style="font-weight: 600; color: ${voucher.remainingAmount > 0 ? '#51cf66' : '#ff6b6b'};">${voucher.remainingAmount.toFixed(2)} د.ك</td>
+                        <td style="font-size: 0.9rem; color: #6c757d;">${formatDate(voucher.createdAt)}</td>
+                        <td class="no-print" style="text-align: center;">
+                          <button 
+                            class="deleteVoucherBtn btn btn-danger"
+                            data-voucher-code="${voucher.code}"
+                            style="padding: 5px 10px; font-size: 12px;"
+                          >
+                            حذف
+                          </button>
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
+        
+        <div id="voucherModal" class="modal no-print">
+          <div class="modal-content">
+            <h3 style="margin-bottom: 25px; color: #495057; text-align: center;">إضافة قسيمة جديدة</h3>
+            
+            <div class="input-group">
+              <label class="input-label">اسم الزبون</label>
+              <input type="text" id="voucherCustomerName" class="form-input" placeholder="أدخل اسم الزبون">
+            </div>
+            
+            <div class="input-group">
+              <label class="input-label">رقم الهاتف</label>
+              <input type="text" id="voucherCustomerPhone" class="form-input" placeholder="أدخل رقم الهاتف">
+            </div>
+            
+            <div class="input-group">
+              <label class="input-label">مبلغ القسيمة (د.ك)</label>
+              <input type="text" id="voucherAmount" class="form-input" placeholder="أدخل المبلغ">
+            </div>
+            
+            <div id="voucherErrorMsg" class="hidden"></div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+              <button id="submitVoucherBtn" class="btn btn-primary" style="flex: 1;">إضافة القسيمة</button>
+              <button id="cancelVoucherBtn" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="adminPasswordModal" class="modal no-print">
+          <div class="modal-content" style="max-width: 400px;">
+            <h3 style="margin-bottom: 25px; color: #495057; text-align: center;">رمز الدخول للإدارة</h3>
+            
+            <div class="input-group">
+              <input 
+                type="password" 
+                id="adminPasswordInput" 
+                class="form-input" 
+                placeholder="أدخل رمز الدخول"
+                style="text-align: center; font-size: 1.5rem; font-weight: bold;"
+                maxlength="4"
+              >
+            </div>
+            
+            <div id="passwordErrorMsg" class="hidden"></div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 20px;">
+              <button id="submitPasswordBtn" class="btn btn-primary" style="flex: 1;">دخول</button>
+              <button id="cancelPasswordBtn" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Event Handlers
+    function setupHomeEvents() {
+      const input = document.getElementById('voucherCodeInput');
+      const nextBtn = document.getElementById('nextBtn');
+      const errorMsg = document.getElementById('errorMsg');
+      const adminBtn = document.getElementById('adminBtn');
+
+      input.addEventListener('input', (e) => {
+        // Convert Arabic numbers to English automatically
+        e.target.value = convertArabicToEnglish(e.target.value);
+        
+        const value = input.value.trim();
+        if (value) {
+          nextBtn.classList.remove('hidden');
+        } else {
+          nextBtn.classList.add('hidden');
+        }
+        if (errorMsg && !errorMsg.classList.contains('hidden')) {
+          errorMsg.classList.add('hidden');
+        }
+      });
+
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !nextBtn.classList.contains('hidden')) {
+          nextBtn.click();
+        }
+      });
+
+      nextBtn.addEventListener('click', async () => {
+        const code = input.value.trim();
+        if (!code) return;
+
+        nextBtn.disabled = true;
+        nextBtn.innerHTML = '<span class="loading"></span> جاري البحث...';
+
+        try {
+          const voucher = await getVoucher(code);
+          
+          if (voucher) {
+            currentVoucher = voucher;
+            currentView = 'details';
+            render();
+          } else {
+            if (!errorMsg.classList.contains('alert')) {
+              errorMsg.className = 'alert alert-error';
+            }
+            errorMsg.textContent = 'رمز القسيمة غير موجود. تأكد من الرمز وحاول مرة أخرى.';
+            errorMsg.classList.remove('hidden');
+          }
+        } catch (error) {
+          if (!errorMsg.classList.contains('alert')) {
+            errorMsg.className = 'alert alert-error';
+          }
+          errorMsg.textContent = 'حدث خطأ في البحث. حاول مرة أخرى.';
+          errorMsg.classList.remove('hidden');
+        }
+
+        nextBtn.disabled = false;
+        nextBtn.textContent = 'التالي';
+      });
+
+      // Secret admin access - click anywhere 5 times quickly
+      let adminAccessEnabled = false;
+      
+      document.addEventListener('click', (e) => {
+        // Don't count clicks on buttons or inputs
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') {
+          return;
+        }
+        
+        clickCount++;
+        
+        if (clickTimer) clearTimeout(clickTimer);
+        
+        clickTimer = setTimeout(() => {
+          clickCount = 0;
+        }, 2000);
+
+        if (clickCount >= 5 && !adminAccessEnabled) {
+          adminBtn.classList.remove('hidden');
+          adminAccessEnabled = true;
+          clickCount = 0;
+          
+          // Show a subtle indication
+          adminBtn.style.animation = 'pulse 1s ease-in-out 3';
+        }
+      });
+
+      // Admin button click handler
+      if (adminBtn) {
+        adminBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          showAdminPasswordModal();
+        });
+      }
+    }
+
+    function setupDetailsEvents() {
+      const backBtn = document.getElementById('backBtn');
+      const printBtn = document.getElementById('printBtn');
+      const addOrderBtn = document.getElementById('addOrderBtn');
+
+      backBtn.addEventListener('click', () => {
+        currentView = 'home';
+        currentVoucher = null;
+        render();
+      });
+
+      printBtn.addEventListener('click', () => {
+        window.print();
+      });
+
+      addOrderBtn.addEventListener('click', () => {
+        showOrderModal();
+      });
+
+      // Delete order buttons
+      document.querySelectorAll('.deleteOrderBtn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const orderId = e.target.dataset.orderId;
+          showDeleteConfirmation(e.target, () => deleteOrderHandler(orderId));
+        });
+      });
+    }
+
+    function setupAdminEvents() {
+      const backToHomeBtn = document.getElementById('backToHomeBtn');
+      const addVoucherBtn = document.getElementById('addVoucherBtn');
+      const printAllBtn = document.getElementById('printAllBtn');
+
+      backToHomeBtn.addEventListener('click', () => {
+        currentView = 'home';
+        render();
+      });
+
+      printAllBtn.addEventListener('click', () => {
+        window.print();
+      });
+
+      addVoucherBtn.addEventListener('click', () => {
+        showVoucherModal();
+      });
+
+      // Delete voucher buttons
+      document.querySelectorAll('.deleteVoucherBtn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const voucherCode = e.target.dataset.voucherCode;
+          showDeleteConfirmation(e.target, () => deleteVoucherHandler(voucherCode));
+        });
+      });
+    }
+
+    function showOrderModal() {
+      const modal = document.getElementById('orderModal');
+      modal.classList.add('flex');
+      
+      const cancelBtn = document.getElementById('cancelOrderBtn');
+      const submitBtn = document.getElementById('submitOrderBtn');
+      const amountInput = document.getElementById('orderAmount');
+
+      // Convert Arabic numbers for amount and phone
+      const phoneInput = document.getElementById('voucherCustomerPhone');
+      
+      amountInput.addEventListener('input', (e) => {
+        e.target.value = convertArabicToEnglish(e.target.value);
+      });
+      
+      phoneInput.addEventListener('input', (e) => {
+        e.target.value = convertArabicToEnglish(e.target.value);
+      });
+
+      cancelBtn.onclick = () => {
+        modal.classList.remove('flex');
+        clearOrderForm();
+      };
+
+      submitBtn.onclick = () => submitOrderHandler();
+    }
+
+    function showVoucherModal() {
+      const modal = document.getElementById('voucherModal');
+      modal.classList.add('flex');
+      
+      const cancelBtn = document.getElementById('cancelVoucherBtn');
+      const submitBtn = document.getElementById('submitVoucherBtn');
+      const amountInput = document.getElementById('voucherAmount');
+
+      // Convert Arabic numbers for amount and phone
+      const phoneInput = document.getElementById('voucherCustomerPhone');
+      
+      amountInput.addEventListener('input', (e) => {
+        e.target.value = convertArabicToEnglish(e.target.value);
+      });
+      
+      phoneInput.addEventListener('input', (e) => {
+        e.target.value = convertArabicToEnglish(e.target.value);
+      });
+
+      cancelBtn.onclick = () => {
+        modal.classList.remove('flex');
+        clearVoucherForm();
+      };
+
+      submitBtn.onclick = () => submitVoucherHandler();
+    }
+
+    function showAdminPasswordModal() {
+      // Check if we're in admin view, if so go directly
+      if (currentView === 'admin') {
+        return;
+      }
+      
+      // Check if modal exists in current view
+      let modal = document.getElementById('adminPasswordModal');
+      if (!modal) {
+        // Create modal dynamically if it doesn't exist
+        const modalHTML = `
+          <div id="adminPasswordModal" class="modal no-print flex">
+            <div class="modal-content" style="max-width: 400px;">
+              <h3 style="margin-bottom: 25px; color: #495057; text-align: center;">رمز الدخول للإدارة</h3>
+              
+              <div class="input-group">
+                <input 
+                  type="password" 
+                  id="adminPasswordInput" 
+                  class="form-input" 
+                  placeholder="أدخل رمز الدخول"
+                  style="text-align: center; font-size: 1.5rem; font-weight: bold;"
+                  maxlength="4"
+                >
+              </div>
+              
+              <div id="passwordErrorMsg" class="hidden"></div>
+              
+              <div style="display: flex; gap: 15px; margin-top: 20px;">
+                <button id="submitPasswordBtn" class="btn btn-primary" style="flex: 1;">دخول</button>
+                <button id="cancelPasswordBtn" class="btn btn-secondary" style="flex: 1;">إلغاء</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        modal = document.getElementById('adminPasswordModal');
+      } else {
+        modal.classList.add('flex');
+      }
+      
+      const passwordInput = document.getElementById('adminPasswordInput');
+      const submitBtn = document.getElementById('submitPasswordBtn');
+      const cancelBtn = document.getElementById('cancelPasswordBtn');
+      const errorMsg = document.getElementById('passwordErrorMsg');
+
+      // Clear previous input
+      passwordInput.value = '';
+      if (errorMsg) errorMsg.classList.add('hidden');
+      
+      // Focus on input
+      setTimeout(() => passwordInput.focus(), 100);
+
+      // Remove old event listeners to prevent duplicates
+      const newSubmitBtn = submitBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      const newPasswordInput = passwordInput.cloneNode(true);
+      
+      submitBtn.parentNode.replaceChild(newSubmitBtn, submitBtn);
+      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+      passwordInput.parentNode.replaceChild(newPasswordInput, passwordInput);
+
+      // Add fresh event listeners
+      newPasswordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          newSubmitBtn.click();
+        }
+      });
+
+      newSubmitBtn.addEventListener('click', async () => {
+        const password = newPasswordInput.value.trim();
+        
+        if (password === '5564') {
+          modal.classList.remove('flex');
+          currentView = 'admin';
+          await render();
+        } else {
+          if (errorMsg && !errorMsg.classList.contains('alert')) {
+            errorMsg.className = 'alert alert-error';
+          }
+          if (errorMsg) {
+            errorMsg.textContent = 'رمز الدخول غير صحيح';
+            errorMsg.classList.remove('hidden');
+          }
+        }
+      });
+
+      newCancelBtn.addEventListener('click', () => {
+        modal.classList.remove('flex');
+      });
+
+      newPasswordInput.addEventListener('input', () => {
+        if (errorMsg && !errorMsg.classList.contains('hidden')) {
+          errorMsg.classList.add('hidden');
+        }
+      });
+      
+      // Focus on the new input
+      setTimeout(() => newPasswordInput.focus(), 100);
+    }
+
+    function showDeleteConfirmation(button, onConfirm) {
+      const originalText = button.textContent;
+      const originalClass = button.className;
+      
+      button.textContent = 'تأكيد الحذف؟';
+      button.style.background = '#dc3545';
+      
+      const confirmHandler = () => {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading"></span> جاري الحذف...';
+        onConfirm();
+      };
+      
+      const cancelHandler = () => {
+        button.textContent = originalText;
+        button.className = originalClass;
+        button.removeEventListener('click', confirmHandler);
+        document.removeEventListener('click', outsideClickHandler);
+      };
+      
+      const outsideClickHandler = (e) => {
+        if (e.target !== button) {
+          cancelHandler();
+        }
+      };
+      
+      button.addEventListener('click', confirmHandler, { once: true });
+      setTimeout(() => {
+        document.addEventListener('click', outsideClickHandler, { once: true });
+      }, 100);
+    }
+
+    async function submitOrderHandler() {
+      const invoiceNumber = document.getElementById('orderInvoiceNumber').value.trim();
+      const amount = document.getElementById('orderAmount').value.trim();
+      const employeeName = document.getElementById('orderEmployeeName').value.trim();
+      const errorMsg = document.getElementById('orderErrorMsg');
+      const submitBtn = document.getElementById('submitOrderBtn');
+
+      // Clear previous errors
+      errorMsg.classList.add('hidden');
+
+      if (!invoiceNumber || !amount || !employeeName) {
+        if (!errorMsg.classList.contains('alert')) {
+          errorMsg.className = 'alert alert-error';
+        }
+        errorMsg.textContent = 'يرجى ملء جميع الحقول المطلوبة';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+
+      const numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        if (!errorMsg.classList.contains('alert')) {
+          errorMsg.className = 'alert alert-error';
+        }
+        errorMsg.textContent = 'المبلغ غير صحيح. يرجى إدخال رقم صحيح';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+
+      if (numAmount > currentVoucher.remainingAmount) {
+        if (!errorMsg.classList.contains('alert')) {
+          errorMsg.className = 'alert alert-error';
+        }
+        errorMsg.textContent = `المبلغ أكبر من المتبقي في القسيمة (${currentVoucher.remainingAmount.toFixed(2)} د.ك)`;
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading"></span> جاري الحفظ...';
+
+      try {
+        const updatedVoucher = await addOrder(currentVoucher.code, {
+          invoiceNumber,
+          amount: numAmount,
+          employeeName
+        });
+
+        if (updatedVoucher) {
+          currentVoucher = updatedVoucher;
+          
+          const message = `مرحبا ${updatedVoucher.name}\nشكراً لشرائك من ${config.business_name}\nتم استخدام رمز القسيمة التالي: ${updatedVoucher.code}\nالمبلغ المخصوم هو: ${numAmount.toFixed(2)} د.ك\nالمبلغ المتبقي من القسيمة: ${updatedVoucher.remainingAmount.toFixed(2)} د.ك\n\nللاستعلام عن قسيمتك في المرات القادمة ادخل موقعنا الالكتروني:\nhttps://figsnolives.mypaydo.shop/shop\n\nثم من القائمة الجانبية (الثلاث خطوط) اختر، استعلام عن قسيمة..\nشكرا لك..`;
+          
+          openWhatsApp(updatedVoucher.phone, message);
+          
+          document.getElementById('orderModal').classList.remove('flex');
+          clearOrderForm();
+          render();
+        }
+      } catch (error) {
+        if (!errorMsg.classList.contains('alert')) {
+          errorMsg.className = 'alert alert-error';
+        }
+        errorMsg.textContent = 'حدث خطأ في حفظ الطلب. حاول مرة أخرى.';
+        errorMsg.classList.remove('hidden');
+      }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'خصم من القسيمة';
+    }
+
+    async function submitVoucherHandler() {
+      const name = document.getElementById('voucherCustomerName').value.trim();
+      const phone = document.getElementById('voucherCustomerPhone').value.trim();
+      const amount = document.getElementById('voucherAmount').value.trim();
+      const errorMsg = document.getElementById('voucherErrorMsg');
+      const submitBtn = document.getElementById('submitVoucherBtn');
+
+      // Clear previous errors
+      errorMsg.classList.add('hidden');
+
+      if (!name || !phone || !amount) {
+        if (!errorMsg.classList.contains('alert')) {
+          errorMsg.className = 'alert alert-error';
+        }
+        errorMsg.textContent = 'يرجى ملء جميع الحقول المطلوبة';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+
+      const numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        if (!errorMsg.classList.contains('alert')) {
+          errorMsg.className = 'alert alert-error';
+        }
+        errorMsg.textContent = 'المبلغ غير صحيح. يرجى إدخال رقم صحيح';
+        errorMsg.classList.remove('hidden');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="loading"></span> جاري الإضافة...';
+
+      try {
+        const voucher = await createVoucher(name, phone, numAmount);
+        
+        if (voucher) {
+          const message = `تم انشاء أمر قسيمة شرائية من ${config.business_name}\nالاسم: ${voucher.name}\nرقم الهاتف: ${voucher.phone}\nرمز القسيمة: ${voucher.code}\nمبلغ القسيمة: ${voucher.totalAmount.toFixed(2)} د.ك\n\nللاستعلام عن قسيمتك في المرات القادمة ادخل موقعنا الالكتروني:\nhttps://figsnolives.mypaydo.shop/shop\n\nثم من القائمة الجانبية (الثلاث خطوط) اختر، استعلام عن قسيمة..\nشكرا لك..`;
+          
+          openWhatsApp(voucher.phone, message);
+          
+          document.getElementById('voucherModal').classList.remove('flex');
+          clearVoucherForm();
+          render();
+        }
+      } catch (error) {
+        if (!errorMsg.classList.contains('alert')) {
+          errorMsg.className = 'alert alert-error';
+        }
+        errorMsg.textContent = 'حدث خطأ في إضافة القسيمة. حاول مرة أخرى.';
+        errorMsg.classList.remove('hidden');
+      }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'إضافة القسيمة';
+    }
+
+    async function deleteOrderHandler(orderId) {
+      try {
+        const updatedVoucher = await deleteOrder(currentVoucher.code, orderId);
+        if (updatedVoucher) {
+          currentVoucher = updatedVoucher;
+          render();
+        }
+      } catch (error) {
+        showAlert('حدث خطأ في حذف الطلب');
+      }
+    }
+
+    async function deleteVoucherHandler(voucherCode) {
+      try {
+        await deleteVoucher(voucherCode);
+        render();
+      } catch (error) {
+        showAlert('حدث خطأ في حذف القسيمة');
+      }
+    }
+
+    function clearOrderForm() {
+      document.getElementById('orderInvoiceNumber').value = '';
+      document.getElementById('orderAmount').value = '';
+      document.getElementById('orderEmployeeName').value = '';
+      const errorMsg = document.getElementById('orderErrorMsg');
+      if (errorMsg) errorMsg.classList.add('hidden');
+    }
+
+    function clearVoucherForm() {
+      document.getElementById('voucherCustomerName').value = '';
+      document.getElementById('voucherCustomerPhone').value = '';
+      document.getElementById('voucherAmount').value = '';
+      const errorMsg = document.getElementById('voucherErrorMsg');
+      if (errorMsg) errorMsg.classList.add('hidden');
+    }
+
+    // Main Render Function
+    async function render() {
+      const app = document.getElementById('app');
+      
+      try {
+        if (currentView === 'home') {
+          app.innerHTML = renderHome();
+          setupHomeEvents();
+        } else if (currentView === 'details' && currentVoucher) {
+          app.innerHTML = renderVoucherDetails(currentVoucher);
+          setupDetailsEvents();
+        } else if (currentView === 'admin') {
+          const vouchers = await getAllVouchers();
+          app.innerHTML = renderAdmin(vouchers);
+          setupAdminEvents();
+        }
+      } catch (error) {
+        console.error('Render error:', error);
+        showAlert('حدث خطأ في تحميل الصفحة');
+      }
+    }
+
+    // Configuration update function
+    function updateConfig(newConfig) {
+      config = { ...config, ...newConfig };
+      
+      const appTitle = document.getElementById('app-title');
+      if (appTitle) {
+        appTitle.textContent = config.app_title;
+      }
+    }
+
+    // Initialize Application
+    document.addEventListener('DOMContentLoaded', () => {
+      render();
+    });
+
+    // Initialize immediately if DOM is already loaded
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', render);
+    } else {
+      render();
+    }
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'999cc6c2e4334b2d',t:'MTc2MjM1MDE2Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
