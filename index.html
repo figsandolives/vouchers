@@ -595,14 +595,13 @@ function openWhatsApp(phone, message) {
     const fullPhone = cleanPhone.startsWith('965') ? cleanPhone : '965' + cleanPhone;
     
     const encodedMessage = encodeURIComponent(message);
+    
+    // 🔑 نستخدم الآن window.location.href للتحويل الفوري
     const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodedMessage}`;
     
-    // نفتح الرابط في نفس النافذة/علامة التبويب (بدون '_blank')
-    // هذا يسمح للمتصفح بتحويل الفتح إلى تطبيق واتساب مباشرة.
-    window.open(whatsappUrl);
-    
-    // ملاحظة إضافية: إذا استمرت المشكلة على بعض الأجهزة (مثل iOS)، 
-    // يمكن استخدام 'window.location.href = whatsappUrl;' بدلاً من 'window.open(whatsappUrl);'
+    // 🥇 المحاولة الأولى: تحويل المتصفح مباشرة إلى الرابط
+    // هذا هو السلوك الأكثر موثوقية لـ Deep Links
+    window.location.href = whatsappUrl;
 }
 
     // Firebase Operations - Primary Storage
