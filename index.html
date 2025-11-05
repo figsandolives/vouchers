@@ -275,19 +275,7 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .admin-btn {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      background: #dc3545;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 12px;
-      display: none;
-    }
+
 
     .loading {
       display: inline-block;
@@ -335,6 +323,27 @@
       margin-top: 20px;
     }
 
+    .connection-status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: bold;
+      z-index: 9999;
+    }
+
+    .connected {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
     /* Responsive Design */
     @media (max-width: 768px) {
       .container {
@@ -369,7 +378,7 @@
         background: white !important;
       }
       
-      .btn, .modal, .admin-btn {
+      .btn, .modal, .connection-status {
         display: none !important;
       }
       
@@ -384,7 +393,10 @@
   <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
   <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
  </head>
- <body><button class="admin-btn" id="adminBtn">Admin</button>
+ <body>
+  <div class="connection-status" id="connectionStatus">
+   🔄 جاري الاتصال...
+  </div>
   <div class="container"><!-- Main Search Page -->
    <div id="mainPage">
     <div class="header" id="headerArea">
@@ -394,6 +406,8 @@
     <div class="card search-section">
      <div class="input-group"><label class="input-label">اكتب رمز القسيمة هنا</label> <input type="text" id="voucherCode" class="form-input" placeholder="0000" maxlength="4">
      </div><button id="nextBtn" class="btn btn-primary hidden" style="font-size: 1.1rem; padding: 15px 40px;"> التالي </button>
+     <div style="margin-top: 30px; text-align: center;"><button id="adminBtnMain" class="btn btn-secondary" style="font-size: 0.9rem; padding: 8px 20px;"> إدارة النظام </button>
+     </div>
     </div>
    </div><!-- Voucher Details Page -->
    <div id="voucherPage" class="hidden">
@@ -502,22 +516,30 @@
       measurementId: "G-QT71DGNRXT"
     };
 
-    // Initialize Firebase with authentication
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    
-    // Set database rules to allow read/write access
-    database.ref('.info/connected').on('value', function(snapshot) {
-      if (snapshot.val() === true) {
-        console.log('Connected to Firebase');
-      }
-    });
-
-
 
     // Global Variables
     let currentVoucher = null;
-    let clickCount = 0;
+    let isConnected = false;
+
+    // Connection Status Monitor
+    database.ref('.info/connected').on('value', function(snapshot) {
+      isConnected = snapshot.val() === true;
+      updateConnectionStatus();
+    });
+
+    function updateConnectionStatus() {
+      const statusElement = document.getElementById('connectionStatus');
+      if (isConnected) {
+        statusElement.textContent = '🟢 متصل';
+        statusElement.className = 'connection-status connected';
+      } else {
+        statusElement.textContent = '🔴 غير متصل';
+        statusElement.className = 'connection-status disconnected';
+      }
+    }
 
     // Utility Functions
     function convertArabicToEnglish(str) {
@@ -554,7 +576,7 @@
       alert.className = `alert alert-${type} fade-in`;
       alert.textContent = message;
       alert.style.position = 'fixed';
-      alert.style.top = '20px';
+      alert.style.top = '60px';
       alert.style.right = '20px';
       alert.style.zIndex = '9999';
       alert.style.maxWidth = '400px';
@@ -574,105 +596,71 @@
       window.open(whatsappUrl, '_blank');
     }
 
-    // Storage Operations (Local Storage with Firebase backup)
-    function getStoredVouchers() {
-      try {
-        const stored = localStorage.getItem('vouchers');
-        return stored ? JSON.parse(stored) : {};
-      } catch (error) {
-        console.error('Error reading from localStorage:', error);
-        return {};
-      }
-    }
-
-    function saveToLocalStorage(vouchers) {
-      try {
-        localStorage.setItem('vouchers', JSON.stringify(vouchers));
-        return true;
-      } catch (error) {
-        console.error('Error saving to localStorage:', error);
+    // Firebase Operations - Primary Storage
+    async function saveVoucher(voucherData) {
+      if (!isConnected) {
+        showAlert('لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.');
         return false;
       }
-    }
 
-    async function saveVoucher(voucherData) {
       try {
-        // Save to local storage first
-        const vouchers = getStoredVouchers();
-        vouchers[voucherData.code] = voucherData;
-        const localSaved = saveToLocalStorage(vouchers);
-        
-        // Try to save to Firebase as backup
-        try {
-          await database.ref('vouchers/' + voucherData.code).set(voucherData);
-        } catch (firebaseError) {
-          console.log('Firebase backup failed, using local storage only');
-        }
-        
-        return localSaved;
+        await database.ref('vouchers/' + voucherData.code).set(voucherData);
+        return true;
       } catch (error) {
         console.error('Error saving voucher:', error);
+        showAlert('خطأ في حفظ البيانات. تحقق من الاتصال بالإنترنت وحاول مرة أخرى.');
         return false;
       }
     }
 
     async function getVoucher(code) {
-      try {
-        // Try local storage first
-        const vouchers = getStoredVouchers();
-        if (vouchers[code]) {
-          return vouchers[code];
-        }
-        
-        // Try Firebase as fallback
-        try {
-          const snapshot = await database.ref('vouchers/' + code).once('value');
-          const voucherData = snapshot.val();
-          if (voucherData) {
-            // Save to local storage for future use
-            vouchers[code] = voucherData;
-            saveToLocalStorage(vouchers);
-            return voucherData;
-          }
-        } catch (firebaseError) {
-          console.log('Firebase read failed, using local storage only');
-        }
-        
+      if (!isConnected) {
+        showAlert('لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.');
         return null;
+      }
+
+      try {
+        const snapshot = await database.ref('vouchers/' + code).once('value');
+        return snapshot.val();
       } catch (error) {
         console.error('Error getting voucher:', error);
+        showAlert('خطأ في قراءة البيانات. تحقق من الاتصال بالإنترنت وحاول مرة أخرى.');
         return null;
       }
     }
 
     async function getAllVouchers() {
+      if (!isConnected) {
+        showAlert('لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.');
+        return [];
+      }
+
       try {
-        const vouchers = getStoredVouchers();
-        const voucherArray = Object.values(vouchers);
-        return voucherArray.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        const snapshot = await database.ref('vouchers').once('value');
+        const vouchers = [];
+        snapshot.forEach(child => {
+          vouchers.push(child.val());
+        });
+        return vouchers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       } catch (error) {
         console.error('Error getting all vouchers:', error);
+        showAlert('خطأ في قراءة البيانات. تحقق من الاتصال بالإنترنت وحاول مرة أخرى.');
         return [];
       }
     }
 
     async function deleteVoucher(code) {
+      if (!isConnected) {
+        showAlert('لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.');
+        return false;
+      }
+
       try {
-        // Delete from local storage
-        const vouchers = getStoredVouchers();
-        delete vouchers[code];
-        const localDeleted = saveToLocalStorage(vouchers);
-        
-        // Try to delete from Firebase as backup
-        try {
-          await database.ref('vouchers/' + code).remove();
-        } catch (firebaseError) {
-          console.log('Firebase delete failed, using local storage only');
-        }
-        
-        return localDeleted;
+        await database.ref('vouchers/' + code).remove();
+        return true;
       } catch (error) {
         console.error('Error deleting voucher:', error);
+        showAlert('خطأ في حذف البيانات. تحقق من الاتصال بالإنترنت وحاول مرة أخرى.');
         return false;
       }
     }
@@ -802,8 +790,6 @@
         displayVoucherInfo(currentVoucher);
         displayOrders(currentVoucher.orders);
         showAlert('تم حذف الطلب بنجاح', 'success');
-      } else {
-        showAlert('فشل في حذف الطلب');
       }
     }
 
@@ -814,8 +800,6 @@
       if (deleted) {
         loadAdminVouchers();
         showAlert('تم حذف القسيمة بنجاح', 'success');
-      } else {
-        showAlert('فشل في حذف القسيمة');
       }
     }
 
@@ -859,7 +843,7 @@
           displayVoucherInfo(voucher);
           displayOrders(voucher.orders || []);
           showPage('voucherPage');
-        } else {
+        } else if (isConnected) {
           showAlert('لم يتم العثور على قسيمة بهذا الرمز');
         }
         
@@ -957,8 +941,6 @@ https://figsnolives.mypaydo.shop/shop
           
           openWhatsApp(currentVoucher.customerPhone, message);
           showAlert('تم إضافة الطلب بنجاح', 'success');
-        } else {
-          showAlert('فشل في حفظ الطلب');
         }
         
         submitBtn.disabled = false;
@@ -980,20 +962,7 @@ https://figsnolives.mypaydo.shop/shop
       });
 
       // Admin functionality
-      let clickTimeout;
-      document.addEventListener('click', () => {
-        clickCount++;
-        
-        clearTimeout(clickTimeout);
-        clickTimeout = setTimeout(() => {
-          if (clickCount >= 5) {
-            document.getElementById('adminBtn').style.display = 'block';
-          }
-          clickCount = 0;
-        }, 1000);
-      });
-
-      document.getElementById('adminBtn').addEventListener('click', () => {
+      document.getElementById('adminBtnMain').addEventListener('click', () => {
         showModal('passwordModal');
       });
 
@@ -1077,8 +1046,6 @@ https://figsnolives.mypaydo.shop/shop
           
           openWhatsApp(customerPhone, message);
           showAlert('تم إضافة القسيمة بنجاح', 'success');
-        } else {
-          showAlert('فشل في إضافة القسيمة');
         }
         
         submitBtn.disabled = false;
@@ -1100,5 +1067,5 @@ https://figsnolives.mypaydo.shop/shop
       });
     });
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'999d16c640c3b157',t:'MTc2MjM1MzQ0NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'999d277225f5db6f',t:'MTc2MjM1NDEyOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
