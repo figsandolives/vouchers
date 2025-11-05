@@ -941,10 +941,11 @@ function openWhatsApp(phone, message) {
 المبلغ المخصوم هو: ${invoiceAmount.toFixed(2)} د.ك
 المبلغ المتبقي من القسيمة: ${currentVoucher.remainingAmount.toFixed(2)} د.ك
 
-للاستعلام عن قسيمتك في المرات القادمة ادخل موقعنا الالكتروني:
+للاستعلام عن رصيد قسيمتك:
+١- ادخل موقعنا الالكتروني
+٢- من القائمة الجانبية (الثلاث خطوط) اختر استعلام عن قسيمة
 https://figsnolives.mypaydo.shop/shop
 
-ثم من القائمة الجانبية (الثلاث خطوط) اختر، استعلام عن قسيمة..
 شكرا لك..`;
           
           openWhatsApp(currentVoucher.customerPhone, message);
@@ -1040,16 +1041,17 @@ https://figsnolives.mypaydo.shop/shop
           e.target.reset();
           
           // WhatsApp message
-          const message = `تم انشاء أمر قسيمة شرائية من مخبز التين والزيتون و مطعم التين الطبيعي،
+          const message = ` *قسيمة شرائية* من مخبز التين والزيتون و مطعم التين الطبيعي،
 الاسم: ${customerName}
-رقم الهاتف: ${customerPhone}
-رمز القسيمة: ${code}
-مبلغ القسيمة: ${totalAmount.toFixed(2)} د.ك
+*رقم الهاتف:* ${customerPhone}
+*رمز القسيمة:* ${code}
+*مبلغ القسيمة:* ${totalAmount.toFixed(2)} د.ك
 
-للاستعلام عن قسيمتك في المرات القادمة ادخل موقعنا الالكتروني:
+للاستعلام عن رصيد قسيمتك:
+١- ادخل موقعنا الالكتروني
+٢- من القائمة الجانبية (الثلاث خطوط) اختر استعلام عن قسيمة
 https://figsnolives.mypaydo.shop/shop
 
-ثم من القائمة الجانبية (الثلاث خطوط) اختر، استعلام عن قسيمة..
 شكرا لك..`;
           
           openWhatsApp(customerPhone, message);
