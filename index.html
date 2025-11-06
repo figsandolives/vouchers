@@ -995,9 +995,10 @@ function openWhatsApp(phone, message) {
           // WhatsApp message
           const message = `مرحبا ${currentVoucher.customerName}
 شكراً لشرائك من مخبز التين والزيتون، و مطعم التين الطبيعي
-تم استخدام رمز القسيمة التالي: ${currentVoucher.code}
-المبلغ المخصوم هو: ${invoiceAmount.toFixed(2)} د.ك
-المبلغ المتبقي من القسيمة: ${currentVoucher.remainingAmount.toFixed(2)} د.ك
+
+*تم استخدام رمز القسيمة التالي:* ${currentVoucher.code}
+*المبلغ المخصوم هو:* ${invoiceAmount.toFixed(2)} د.ك
+*المبلغ المتبقي من القسيمة:* ${currentVoucher.remainingAmount.toFixed(2)} د.ك
 
 *للاستعلام عن رصيد قسيمتك:*
 ١- اضغط على رابط موقعنا الالكتروني
@@ -1017,6 +1018,10 @@ https://figsnolives.mypaydo.shop/shop
       // Invoice amount input conversion
       document.getElementById('invoiceAmount').addEventListener('input', (e) => {
         e.target.value = convertArabicToEnglish(e.target.value);
+      });
+
+      document.getElementById('invoiceNumber').addEventListener('input', (e) => {
+        e.target.value = convertArabicToEnglish(e.target.value); 
       });
 
       document.getElementById('newVoucherAmount').addEventListener('input', (e) => {
