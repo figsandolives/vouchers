@@ -392,6 +392,38 @@
         border: 1px solid #ddd;
       }
     }
+
+    /* 🆕 أنماط جديدة لتصغير حقول البيانات المقروءة فقط */
+.readonly-info-group .input-label {
+    font-size: 0.85rem; /* تصغير حجم العنوان */
+    margin-bottom: 5px;
+    font-weight: normal; /* تخفيف سماكة الخط */
+}
+
+.readonly-info-group .form-input {
+    padding: 8px 10px; /* تصغير حجم المساحة الداخلية */
+    font-size: 14px; /* تصغير حجم الخط */
+    background: #e9ecef; /* تغيير الخلفية للتمييز أنها مقروءة فقط */
+    color: #495057;
+    text-align: right;
+}
+
+/* تعديل الـ grid-2 ليعمل بشكل جيد مع الحقول الصغيرة */
+.small-grid-3 {
+    display: grid;
+    /* 3 أعمدة صغيرة */
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 10px; /* تقليل المسافة بين العناصر */
+    margin-bottom: 20px;
+}
+
+/* نستخدم تنسيق grid-2 العادي لحقول الفاتورة الجديدة */
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
   </style>
   <style>@view-transition { navigation: auto; }</style>
   <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
@@ -467,26 +499,47 @@
     </div>
    </div>
   </div><!-- Add Order Modal -->
-  <div id="orderModal" class="modal">
-   <div class="modal-content"><span class="close" id="closeOrderModal">×</span>
+<div id="orderModal" class="modal">
+   <div class="modal-content">
+    <span class="close" id="closeOrderModal">×</span>
     <h3 style="text-align: center; color: #2c5aa0; margin-bottom: 25px;">إضافة طلب جديد</h3>
     <form id="orderForm">
-     <div class="grid-2">
-      <div class="input-group"><label class="input-label">اسم الزبون</label> <input type="text" id="orderCustomerName" class="form-input" readonly>
+     
+     <div class="small-grid-3">
+      
+      <div class="input-group readonly-info-group">
+        <label class="input-label">الزبون</label> 
+        <input type="text" id="orderCustomerName" class="form-input" readonly>
       </div>
-      <div class="input-group"><label class="input-label">رقم الهاتف</label> <input type="text" id="orderCustomerPhone" class="form-input" readonly>
+      
+      <div class="input-group readonly-info-group">
+        <label class="input-label">الهاتف</label> 
+        <input type="text" id="orderCustomerPhone" class="form-input" readonly>
+      </div>
+      
+      <div class="input-group readonly-info-group">
+        <label class="input-label">رمز القسيمة</label> 
+        <input type="text" id="orderVoucherCode" class="form-input" readonly>
       </div>
      </div>
-     <div class="input-group"><label class="input-label">رمز القسيمة</label> <input type="text" id="orderVoucherCode" class="form-input" readonly>
+     
+     <div class="input-group">
+        <label class="input-label">رقم الفاتورة</label> 
+        <input type="text" id="invoiceNumber" class="form-input" required>
      </div>
-     <div class="input-group"><label class="input-label">رقم الفاتورة</label> <input type="text" id="invoiceNumber" class="form-input" required>
+     <div class="input-group">
+        <label class="input-label">مبلغ الفاتورة</label> 
+        <input type="text" id="invoiceAmount" class="form-input" required>
      </div>
-     <div class="input-group"><label class="input-label">مبلغ الفاتورة</label> <input type="text" id="invoiceAmount" class="form-input" required>
+     <div class="input-group">
+        <label class="input-label">اسم الموظف</label> 
+        <input type="text" id="employeeName" class="form-input" required>
      </div>
-     <div class="input-group"><label class="input-label">اسم الموظف</label> <input type="text" id="employeeName" class="form-input" required>
-     </div><button type="submit" class="btn btn-success" style="width: 100%; margin-top: 20px;"> خصم من القسيمة </button>
+     
+     <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 20px;"> خصم من القسيمة </button>
     </form>
    </div>
+</div>
   </div><!-- Add Voucher Modal -->
   <div id="voucherModal" class="modal">
    <div class="modal-content"><span class="close" id="closeVoucherModal">×</span>
