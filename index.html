@@ -426,16 +426,12 @@
 
   </style>
   <style>@view-transition { navigation: auto; }</style>
-  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
-  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
-  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
- </head>
+  </head>
  <body>
   <div class="connection-status" id="connectionStatus">
    🔄 جاري الاتصال...
   </div>
-  <div class="container"><!-- Main Search Page -->
-   <div id="mainPage">
+  <div class="container"><div id="mainPage">
     <div class="header" id="headerArea">
      <h1>قسائم شراء</h1>
      <p>مخبز التين والزيتون - مطعم التين الطبيعي</p>
@@ -443,11 +439,13 @@
     <div class="card search-section">
      <div class="input-group"><label class="input-label">اكتب رمز القسيمة هنا</label> <input type="text" id="voucherCode" class="form-input" placeholder="0000" maxlength="4">
      </div><button id="nextBtn" class="btn btn-primary hidden" style="font-size: 1.1rem; padding: 15px 40px;"> التالي </button>
-     <div style="margin-top: 30px; text-align: center;"><button id="adminBtnMain" class="btn btn-secondary" style="font-size: 0.9rem; padding: 8px 20px;"> إدارة النظام </button>
+     
+     <div style="margin-top: 30px; text-align: center;">
+        <button id="inquireVoucherCodeBtn" class="btn btn-primary" style="font-size: 0.9rem; padding: 8px 20px; margin-left: 10px;"> استعلام عن رمز القسيمة </button>
+        <button id="adminBtnMain" class="btn btn-secondary" style="font-size: 0.9rem; padding: 8px 20px;"> إدارة النظام </button>
      </div>
     </div>
-   </div><!-- Voucher Details Page -->
-   <div id="voucherPage" class="hidden">
+   </div><div id="voucherPage" class="hidden">
     <div class="card">
      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><button id="backBtn" class="btn btn-secondary">← العودة</button> <button id="printBtn" class="btn btn-primary">🖨️ طباعة</button>
      </div>
@@ -470,8 +468,7 @@
      <div class="action-buttons"><button id="addOrderBtn" class="btn btn-success">إضافة طلب جديد</button>
      </div>
     </div>
-   </div><!-- Admin Page -->
-   <div id="adminPage" class="hidden">
+   </div><div id="adminPage" class="hidden">
     <div class="card">
      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <h2 style="margin: 0; color: #2c5aa0;">إدارة القسائم</h2>
@@ -498,8 +495,7 @@
      </div>
     </div>
    </div>
-  </div><!-- Add Order Modal -->
-<div id="orderModal" class="modal">
+  </div><div id="orderModal" class="modal">
    <div class="modal-content">
     <span class="close" id="closeOrderModal">×</span>
     <h3 style="text-align: center; color: #2c5aa0; margin-bottom: 25px;">إضافة طلب جديد</h3>
@@ -540,8 +536,7 @@
     </form>
    </div>
 </div>
-  </div><!-- Add Voucher Modal -->
-  <div id="voucherModal" class="modal">
+  </div><div id="voucherModal" class="modal">
    <div class="modal-content"><span class="close" id="closeVoucherModal">×</span>
     <h3 style="text-align: center; color: #2c5aa0; margin-bottom: 25px;">إضافة قسيمة جديدة</h3>
     <form id="voucherForm">
@@ -553,14 +548,29 @@
      </div><button type="submit" class="btn btn-success" style="width: 100%; margin-top: 20px;"> إضافة </button>
     </form>
    </div>
-  </div><!-- Admin Password Modal -->
-  <div id="passwordModal" class="modal">
+  </div><div id="passwordModal" class="modal">
    <div class="modal-content"><span class="close" id="closePasswordModal">×</span>
     <h3 style="text-align: center; color: #2c5aa0; margin-bottom: 25px;">كلمة المرور</h3>
     <div class="input-group"><input type="password" id="adminPassword" class="form-input" placeholder="أدخل كلمة المرور">
     </div><button id="loginBtn" class="btn btn-primary" style="width: 100%;"> دخول </button>
    </div>
   </div>
+  
+  <div id="inquiryModal" class="modal">
+   <div class="modal-content">
+    <span class="close" id="closeInquiryModal">×</span>
+    <h3 style="text-align: center; color: #2c5aa0; margin-bottom: 25px;">استعلام عن رمز القسيمة</h3>
+    <div id="inquiryAlerts"></div>
+    <form id="inquiryForm">
+     <div class="input-group">
+        <label class="input-label">رقم هاتف الزبون</label> 
+        <input type="tel" id="inquiryCustomerPhone" class="form-input" placeholder="965xxxxxxx" required>
+     </div>
+     <button type="submit" id="sendInquiryBtn" class="btn btn-primary" style="width: 100%; margin-top: 20px;"> إرسال </button>
+    </form>
+   </div>
+</div>
+  
   <script>
     // Firebase Configuration
     const firebaseConfig = {
@@ -610,7 +620,7 @@
       });
       
       result = result.replace(/،/g, '.');
-      return result;
+      return result.replace(/[^\d.]/g, ''); // للحفاظ على الأرقام والنقطة فقط
     }
 
     function generateVoucherCode() {
@@ -654,11 +664,9 @@ function openWhatsApp(phone, message) {
     
     const encodedMessage = encodeURIComponent(message);
     
-    // 🔑 نستخدم الآن window.location.href للتحويل الفوري
     const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodedMessage}`;
     
-    // 🥇 المحاولة الأولى: تحويل المتصفح مباشرة إلى الرابط
-    // هذا هو السلوك الأكثر موثوقية لـ Deep Links
+    // 🔑 هذا هو المفتاح: استخدام location.href
     window.location.href = whatsappUrl;
 }
 
@@ -694,6 +702,36 @@ function openWhatsApp(phone, message) {
         return null;
       }
     }
+    
+    // 🆕 NEW: Function to get all vouchers associated with a phone number
+    async function getVouchersByPhone(phone) {
+      if (!isConnected) {
+        showAlert('لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.');
+        return null;
+      }
+      
+      const cleanedPhone = phone.replace(/[^0-9]/g, '');
+
+      try {
+        // Query Firebase to find all vouchers where customerPhone equals the input phone
+        const snapshot = await database.ref('vouchers')
+          .orderByChild('customerPhone')
+          .equalTo(cleanedPhone)
+          .once('value');
+          
+        const vouchers = [];
+        snapshot.forEach(child => {
+          vouchers.push(child.val());
+        });
+        
+        return vouchers;
+      } catch (error) {
+        console.error('Error getting vouchers by phone:', error);
+        showAlert('خطأ في قراءة البيانات. تحقق من الاتصال بالإنترنت وحاول مرة أخرى. (تحقق من فهرسة customerPhone في قواعد Firebase)', 'error');
+        return null;
+      }
+    }
+
 
     async function getAllVouchers() {
       if (!isConnected) {
@@ -958,8 +996,8 @@ function openWhatsApp(phone, message) {
           return;
         }
         
-        if (invoiceAmount <= 0) {
-          showAlert('مبلغ الفاتورة يجب أن يكون أكبر من صفر');
+        if (invoiceAmount <= 0 || isNaN(invoiceAmount)) {
+          showAlert('مبلغ الفاتورة يجب أن يكون رقمًا صحيحًا وأكبر من صفر');
           return;
         }
         
@@ -1015,7 +1053,7 @@ https://figsnolives.mypaydo.shop/shop
         submitBtn.textContent = 'خصم من القسيمة';
       });
 
-      // Invoice amount input conversion
+      // Invoice input conversions
       document.getElementById('invoiceAmount').addEventListener('input', (e) => {
         e.target.value = convertArabicToEnglish(e.target.value);
       });
@@ -1031,6 +1069,85 @@ https://figsnolives.mypaydo.shop/shop
       // Phone number input conversion
       document.getElementById('newCustomerPhone').addEventListener('input', (e) => {
         e.target.value = convertArabicToEnglish(e.target.value);
+      });
+      
+      // 🔑 التعامل مع نافذة استعلام رمز القسيمة (Inquire Voucher Code)
+      document.getElementById('inquireVoucherCodeBtn').addEventListener('click', () => {
+        showModal('inquiryModal');
+      });
+
+      document.getElementById('closeInquiryModal').addEventListener('click', () => {
+        hideModal('inquiryModal');
+      });
+
+      // 🔄 تحويل الأرقام المدخلة إلى إنجليزية في حقل الهاتف بالنافذة المنبثقة
+      document.getElementById('inquiryCustomerPhone').addEventListener('input', (e) => {
+        e.target.value = convertArabicToEnglish(e.target.value);
+      });
+
+      // 📧 إرسال طلب الاستعلام (المنطق الرئيسي)
+      document.getElementById('inquiryForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const phoneInput = document.getElementById('inquiryCustomerPhone');
+        // Clean the phone number (assuming it's already converted to English digits by the input listener)
+        const phone = phoneInput.value.trim().replace(/[^0-9]/g, ''); 
+        const submitBtn = document.getElementById('sendInquiryBtn');
+        const alertsContainer = document.getElementById('inquiryAlerts');
+        
+        alertsContainer.innerHTML = '';
+        if (phone.length < 8) {
+          alertsContainer.innerHTML = '<div class="alert alert-error">يرجى إدخال رقم هاتف صحيح لا يقل عن 8 أرقام.</div>';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="loading"></span> جاري البحث...';
+        
+        const vouchers = await getVouchersByPhone(phone);
+        
+        // 1. Prepare message components
+        let voucherCodes = '';
+        let totalRemainingAmount = 0;
+        
+        if (vouchers && vouchers.length > 0) {
+          // If multiple vouchers found
+          vouchers.forEach((v, index) => {
+            // Include code and remaining amount for each voucher
+voucherCodes += `\*رمز القسيمة:* ${v.code} 
+*المبلغ المتبقي:* ${v.remainingAmount.toFixed(2)} د.ك`;
+            totalRemainingAmount += v.remainingAmount;
+          });
+
+          // Final successful message template
+          const finalMessage = `عميلنا العزيز، مخبز التين والزيتون ومطعم التين الطبيعي يرحب بك..
+
+قسيمتك الشرائية:
+
+${voucherCodes}
+
+شكراً لك..`;
+          
+          openWhatsApp(phone, finalMessage); 
+          showAlert('تم فتح تطبيق واتساب لعرض القسائم.', 'success');
+        
+        } else if (vouchers) {
+          // 2. No vouchers found
+          const errorMessage = `عميلنا العزيز، مخبز التين والزيتون ومطعم التين الطبيعي يرحب بك..
+
+لم يتم العثور على أي قسائم شرائية مسجلة لرقمكم (${phone}).
+
+شكراً لك..`;
+          
+          openWhatsApp(phone, errorMessage);
+          showAlert('لم يتم العثور على قسائم. تم فتح واتساب لإبلاغ العميل.', 'error');
+        }
+        
+        hideModal('inquiryModal');
+        e.target.reset();
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'إرسال';
       });
 
       // Admin functionality
@@ -1070,13 +1187,8 @@ https://figsnolives.mypaydo.shop/shop
         const customerPhone = document.getElementById('newCustomerPhone').value.trim();
         const totalAmount = parseFloat(convertArabicToEnglish(document.getElementById('newVoucherAmount').value.trim()));
         
-        if (!customerName || !customerPhone || !totalAmount) {
-          showAlert('يرجى ملء جميع الحقول');
-          return;
-        }
-        
-        if (totalAmount <= 0) {
-          showAlert('مبلغ القسيمة يجب أن يكون أكبر من صفر');
+        if (!customerName || !customerPhone || !totalAmount || isNaN(totalAmount) || totalAmount <= 0) {
+          showAlert('يرجى ملء جميع الحقول بمبالغ صحيحة أكبر من صفر');
           return;
         }
         
@@ -1106,7 +1218,7 @@ https://figsnolives.mypaydo.shop/shop
           // WhatsApp message
           const message = ` عميلنا العزيز، مخبز التين والزيتون ومطعم التين الطبيعي يرحب بك..
 
-                  *قسيمة شرائية*
+*قسيمة شرائية*
 *الاسم:* ${customerName}
 *رقم الهاتف:* ${customerPhone}
 *رمز القسيمة:* ${code}
